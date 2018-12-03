@@ -1,0 +1,131 @@
+---
+title: "PsA"
+author: "Kendall Anderson"
+date: "11/8/2018"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+
+```{r}
+#clean_first <- read.csv("PsA_clean.csv")
+
+clean_one <- read.csv("PsA_clean.csv", na.strings=c("","NA"," "))
+```
+
+```{r}
+#View(clean_first)
+```
+
+```{r}
+#clean_one <- clean_first %>%
+#  filter(Event_Name == "B")
+```
+
+```{r}
+#View(clean_one)
+```
+
+```{r}
+clean_one$race<-"unknown"
+clean_one$hispanic_latino<-"unknown"
+```
+
+```{r}
+clean_one <- clean_one %>% mutate(hispanic_latino = ifelse(Hispanic_Latino_Yes == 1 , "yes", hispanic_latino))
+clean_one <- clean_one %>% mutate(hispanic_latino = ifelse(Hispanic_Latino_No == 1 , "no", hispanic_latino))
+clean_one <- clean_one %>% mutate(hispanic_latino = ifelse(Hispanic_Latino_Not_Reported == 1 , "unknown", hispanic_latino))
+clean_one <- clean_one %>% mutate(hispanic_latino = ifelse(Hispanic_Latino_Unknown == 1 , "unknown", hispanic_latino))
+```
+
+```{r}
+clean_one <- clean_one %>% mutate(race = ifelse(WHITE == 1 , "white", race))
+clean_one <- clean_one %>% mutate(race = ifelse(BLACK == 1 , "black", race))
+clean_one <- clean_one %>% mutate(race = ifelse(NATIVE_AMERICAN == 1 , "native_american", race))
+clean_one <- clean_one %>% mutate(race = ifelse(NATIVE_HAWAIIAN_PACIFIC_ISLANDER == 1 , "native_hawaiian_pacific_islander", race))
+clean_one <- clean_one %>% mutate(race = ifelse(OTHER == 1 , "other", race))
+clean_one <- clean_one %>% mutate(race = ifelse(NOT_REPORTED == 1 , "unknown", race))
+clean_one <- clean_one %>% mutate(race = ifelse(UNKNOWN == 1 , "unknown", race))
+```
+
+```{r}
+ggplot(clean_one, aes(race, fill=hispanic_latino)) +
+  geom_bar()+
+  geom_text(stat='count', aes(label=..count..), vjust=-0.2)
+```
+
+```{r}
+clean_one$Dactylitis <- as.character(clean_one$Dactylitis)
+clean_one$Dactylitis[is.na(clean_one$Dactylitis)] <- "Unknown"
+clean_one <- clean_one %>% mutate(Dactylitis = ifelse(Dactylitis == "Unavailable" , "Unknown", Dactylitis))
+```
+
+```{r}
+#clean_one$Dactylitis
+```
+
+```{r}
+ggplot(clean_one, aes(x=Arthritis_Score, y=Joint_Count, colour=Dactylitis))+
+         geom_point()
+```
+
+```{r}
+# create drug column
+clean_one$drug_type<-"drug"
+```
+
+```{r}
+#biologics
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Cosentyx_Secukinumab == "Yes" , "biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Adalimumab_Humira == "Yes" , "biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Certolizumab_Pegol_Cimzia == "Yes" , "biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Etanercept_Enbrel == "Yes" , "biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Golimumab_Simponi == "Yes" , "biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Infliximab_Remicade == "Yes" , "biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Ustekinumab_Stelara == "Yes" , "biologic", drug_type))
+
+# non-biologics
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Sulfasalazine == "Yes" , "non-biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Apremilast == "Yes" , "non-biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Azathioprine_Imuran == "Yes" , "non-biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Hydroxychloroquine_Plaquenil == "Yes" , "non-biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Leflunomide_Arava == "Yes" , "non-biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Methotrexate_Rheumatrex == "Yes" , "non-biologic", drug_type))
+clean_one <- clean_one %>% mutate(drug_type = ifelse(Mycophenolate_mofetil_CellCept == "Yes" , "non-biologic", drug_type))
+
+```
+
+```{r}
+ggplot(clean_one, aes(drug_type))+
+  geom_bar()+
+  geom_text(stat='count', aes(label=..count..), vjust = -0.5)
+```
+
+```{r}
+clean_one$PAC_ID <- as.character(clean_one$PAC_ID)
+clean_one$Date <- as.character(clean_one$Date)
+```
+
+```{r}
+# convert patient visit dates into date variables
+clean_one$Date <- as_date(clean_one$Date)
+```
+
+```{r}
+class(clean_one$Date)
+```
+
+```{r}
+as.tibble(clean_one[1:50,])
+```
+
+```{r}
+ggplot(clean_one[1:100,], aes(x=Date, y=PAC_ID, color=drug_type))+
+  geom_point()
+```
+
