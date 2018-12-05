@@ -129,3 +129,44 @@ ggplot(clean_one[1:100,], aes(x=Date, y=PAC_ID, color=drug_type))+
   geom_point()
 ```
 
+```{r}
+head(clean_one)
+str(clean_one)
+```
+
+```{r}
+names(clean_one)
+class(clean_one)
+```
+```{r}
+#subset by Event_Name
+EN <- split(clean_one, clean_one$Event_Name)
+```
+
+```{r}
+#assign dataframe for each visit
+lapply(seq_along(EN), function(x) {
+    assign(c("B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P")[x], EN[[x]], envir=.GlobalEnv)
+    }
+)
+```
+
+```{r}
+#feature selection B -- for joint count
+library(leaps)
+B$Joint_Count <- as.factor(B$Joint_Count)
+FAC<- sapply(B, function(x) is.factor(x))
+Fac_only_B <- B[, FAC]
+Fac_only_B_1 <- which(sapply(Fac_only_B, function(x) length(unique(x))<2)) # see which factor has only one level
+Fac_only_B_EN <- Fac_only_B[,3:68]
+
+str(Fac_only_B_EN)
+Fac_only_B_EN_non1 <-Fac_only_B_EN[, sapply(Fac_only_B_EN, nlevels) > 1]
+str(Fac_only_B_EN_non1)
+#fit <- regsubsets(Joint_Count_F ~., Fac_only_B_EN_non1,  nvmax=19,	method="forward")
+library(glmnet)
+summary(Fac_only_B_EN_non1$Joint_Count)
+glmmod <- glmnet(B, y=as.factor(Joint_Count), alpha=1, family="binomial")
+
+```
+
