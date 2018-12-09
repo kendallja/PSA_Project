@@ -10,25 +10,11 @@ library(dplyr)
 library(tidyverse)
 library(lubridate)
 library(ggplot2)
+library(rlist)
 ```
 
 ```{r}
-#clean_first <- read.csv("PsA_clean.csv")
-
 clean_one <- read.csv("PsA_clean.csv", na.strings=c("","NA"," "))
-```
-
-```{r}
-#View(clean_first)
-```
-
-```{r}
-#clean_one <- clean_first %>%
-#  filter(Event_Name == "B")
-```
-
-```{r}
-#View(clean_one)
 ```
 
 ```{r}
@@ -66,43 +52,48 @@ clean_one <- clean_one %>% mutate(Dactylitis = ifelse(Dactylitis == "Unavailable
 ```
 
 ```{r}
-#clean_one$Dactylitis
-```
-
-```{r}
 ggplot(clean_one, aes(x=Arthritis_Score, y=Joint_Count, colour=Dactylitis))+
          geom_point()
 ```
 
 ```{r}
 # create drug column
-clean_one$drug_type<-"drug"
+clean_one$drug_type<- "none"
+clean_one$biologic_manual <- "none"
+clean_one$non_biologic_manual <- "none"
 ```
 
 ```{r}
-#biologics
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Cosentyx_Secukinumab == "Yes" , "biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Adalimumab_Humira == "Yes" , "biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Certolizumab_Pegol_Cimzia == "Yes" , "biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Etanercept_Enbrel == "Yes" , "biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Golimumab_Simponi == "Yes" , "biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Infliximab_Remicade == "Yes" , "biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Ustekinumab_Stelara == "Yes" , "biologic", drug_type))
+# assign Yes to biologic manual column if patient is taking a biologic drug
+clean_one <- clean_one %>% mutate(biologic_manual = ifelse(Cosentyx_Secukinumab == "Yes" | Adalimumab_Humira == "Yes" | Certolizumab_Pegol_Cimzia == "Yes" | Etanercept_Enbrel == "Yes" | Golimumab_Simponi == "Yes" | Infliximab_Remicade == "Yes" | Ustekinumab_Stelara == "Yes" | Biologic == "Yes", "Yes", biologic_manual))
 
-# non-biologics
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Sulfasalazine == "Yes" , "non-biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Apremilast == "Yes" , "non-biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Azathioprine_Imuran == "Yes" , "non-biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Hydroxychloroquine_Plaquenil == "Yes" , "non-biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Leflunomide_Arava == "Yes" , "non-biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Methotrexate_Rheumatrex == "Yes" , "non-biologic", drug_type))
-clean_one <- clean_one %>% mutate(drug_type = ifelse(Mycophenolate_mofetil_CellCept == "Yes" , "non-biologic", drug_type))
-
+# assign Yes to non-biologic manual column if patient is taking a non-biologic drug
+clean_one <- clean_one %>% mutate(non_biologic_manual = ifelse(Sulfasalazine == "Yes" | Apremilast == "Yes" | Azathioprine_Imuran == "Yes" | Hydroxychloroquine_Plaquenil == "Yes" | Leflunomide_Arava == "Yes" | Methotrexate_Rheumatrex == "Yes" | Mycophenolate_mofetil_CellCept == "Yes", "Yes", non_biologic_manual))
 ```
 
 ```{r}
+# both
+clean_one <- clean_one %>% mutate(drug_type = ifelse(biologic_manual == "Yes" & non_biologic_manual == "Yes", "both", drug_type))
+
+# biologic
+clean_one <- clean_one %>% mutate(drug_type = ifelse(biologic_manual == "Yes" & (non_biologic_manual == "No" | non_biologic_manual == "none" | is.na(non_biologic_manual)), "biologic", drug_type))
+
+# non-biologic
+clean_one <- clean_one %>% mutate(drug_type = ifelse((biologic_manual == "No" |  biologic_manual == "none" | is.na(biologic_manual)) & (non_biologic_manual == "Yes"), "non-biologic", drug_type))
+
+# none
+clean_one <- clean_one %>% mutate(drug_type = ifelse((biologic_manual == "No" |  biologic_manual == "none" | is.na(biologic_manual)) & (non_biologic_manual == "No" | non_biologic_manual == "none" | is.na(non_biologic_manual)), "neither", drug_type))
+```
+
+```{r}
+# make sure there are no NAs for drug type
+sum(is.na(clean_one$drug_type) == TRUE)
+```
+
+```{r}
+# plot distribution of drug types or combinations in PSA dataset
 ggplot(clean_one, aes(drug_type))+
-  geom_bar()+
+  geom_bar(fill="tomato3")+
   geom_text(stat='count', aes(label=..count..), vjust = -0.5)
 ```
 
@@ -114,14 +105,6 @@ clean_one$Date <- as.character(clean_one$Date)
 ```{r}
 # convert patient visit dates into date variables
 clean_one$Date <- as_date(clean_one$Date)
-```
-
-```{r}
-class(clean_one$Date)
-```
-
-```{r}
-as.tibble(clean_one[1:50,])
 ```
 
 ```{r}
@@ -180,14 +163,58 @@ PAC_ID_meds <- read.csv("PAC_ID_meds.csv")
 ```
 
 ```{r}
-PAC_ID_meds <- subset(PAC_ID_meds, select = -c(X))
+# find all antibiotics entries in the meds dataframe
+antibiotics <- list(grep("Penicillin|Amoxicillin|Tigecycline|Doxycycline|Ceftazidime|Cefpodoxime|Cefazolin|CeftazIDIME|CefazoLIN|CefTRIAXone|Ceftriaxone|CeftriaXONE|CefePIME|Ciprofloxacin|Levofloxacin|Clindamycin|Azithromycin|Erythromycin|Sulfamethoxazole|Vancomycin|Gentamicin|Amikacin|Meropenem|Neomycin|Isoniazid|Piperacillin|Tazobactam|Linezolid|Mupirocin|Tobramycin|Clarithromycin|Daptomycin|Ampicillin|Dicloxacillin|Oxacillin|Nafcillin|Minocycline", PAC_ID_meds$Name, ignore.case = TRUE))
 ```
 
 ```{r}
-View(PAC_ID_meds)
+antibiotics_df <- as.data.frame(antibiotics)
 ```
 
+```{r}
+View(antibiotics_df)
+```
 
+```{r}
+# duplicate column with PAC_IDs that took antibiotics, call column X so it can bind to meds df
+antibiotics_df$X <- antibiotics_df$c.450L..527L..529L..540L..543L..578L..606L..612L..617L..619L..
+```
 
+```{r}
+# remove old column with long obnoxious name
+antibiotics_df <- subset(antibiotics_df, select = -c(c.450L..527L..529L..540L..543L..578L..606L..612L..617L..619L..))
+```
 
+```{r}
+# merge patient IDs of people who took antibiotics with the meds they took and when
+antibiotics_only <- merge(antibiotics_df, PAC_ID_meds)
+```
 
+```{r}
+View(antibiotics_only)
+```
+
+```{r}
+# convert release date into charcter so it can then be turned into a date
+antibiotics_only$ReleaseDate <- as.character(antibiotics_only$ReleaseDate)
+```
+
+```{r}
+# convert release date into date so it can be ordered by time
+antibiotics_only$ReleaseDate <- as_date(antibiotics_only$ReleaseDate)
+```
+
+```{r}
+# order by date
+antibiotics_only <- antibiotics_only[order(as.Date(antibiotics_only$ReleaseDate)),]
+```
+
+```{r}
+# remove dates that were before the time point of the PSA dataset collection
+antibiotics_only <- antibiotics_only %>% filter(ReleaseDate >= as.Date("2014-07-27") & ReleaseDate <= as.Date("2018-03-17"))
+```
+
+```{r}
+#date_df <- data.frame(B$Date, B$PAC_ID)
+#newdata <- date_df[order(date_df$B.Date),]
+```
